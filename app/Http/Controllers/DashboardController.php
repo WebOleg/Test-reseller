@@ -10,26 +10,20 @@ use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
-    /**
-     * Display dashboard with statistics
-     */
     public function index()
     {
         $user = auth()->user();
         
-        // Basic stats
         $totalSubUsers = $user->subUsers()->count();
-        $activeSubUsers = $user->activeSubUsers()->count();
+        $activeSubUsers = $user->subUsers()->where('status', 'active')->count();
         $totalBalance = $user->subUsers()->sum('balance');
         
-        // Recent transactions
         $recentTransactions = $user->transactions()
             ->with('subUser')
             ->latest()
             ->limit(10)
             ->get();
             
-        // Monthly spending chart data
         $monthlySpending = $user->transactions()
             ->selectRaw('DATE_FORMAT(created_at, "%Y-%m") as month, SUM(amount) as total')
             ->where('type', 'charge')

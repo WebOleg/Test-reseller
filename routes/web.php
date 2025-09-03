@@ -62,3 +62,19 @@ Route::post('/webhook/payment', [WebhookController::class, 'handlePayment'])
 // Health check routes
 Route::get('/health', [App\Http\Controllers\HealthCheckController::class, 'check'])->name('health.check');
 Route::get('/ping', [App\Http\Controllers\HealthCheckController::class, 'ping'])->name('health.ping');
+
+Route::middleware('auth')->group(function () {
+    Route::get('/payment', [App\Http\Controllers\PaymentController::class, 'showForm'])->name('payment.form');
+    Route::post('/payment', [App\Http\Controllers\PaymentController::class, 'process'])->name('payment.process');
+});
+
+Route::middleware('auth')->group(function () {
+    Route::get('/payment', [App\Http\Controllers\PaymentController::class, 'showForm'])->name('payment.form');
+    Route::post('/payment', [App\Http\Controllers\PaymentController::class, 'process'])->name('payment.process');
+});
+
+Route::middleware('auth')->group(function () {
+    Route::get('/payment', [App\Http\Controllers\PaymentController::class, 'showForm'])->name('payment.form');
+    Route::post('/payment', [App\Http\Controllers\PaymentController::class, 'process'])->name('payment.process');
+    Route::get('/transactions', [App\Http\Controllers\TransactionController::class, 'index'])->name('transactions.index');
+});

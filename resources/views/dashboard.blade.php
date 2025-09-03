@@ -1,23 +1,17 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="row">
-    <div class="col-md-12">
-        <h1 class="mb-4">Dashboard</h1>
-    </div>
-</div>
-
 <div class="row mb-4">
     <div class="col-md-3">
         <div class="card bg-primary text-white">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
-                        <h6 class="card-title">Total Sub Users</h6>
+                        <h6>Total Sub Users</h6>
                         <h3>{{ $totalSubUsers }}</h3>
                     </div>
                     <div class="align-self-center">
-                        <i class="fas fa-users fa-2x opacity-75"></i>
+                        <i class="fas fa-users fa-2x"></i>
                     </div>
                 </div>
             </div>
@@ -29,11 +23,11 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
-                        <h6 class="card-title">Active Users</h6>
+                        <h6>Active Users</h6>
                         <h3>{{ $activeSubUsers }}</h3>
                     </div>
                     <div class="align-self-center">
-                        <i class="fas fa-user-check fa-2x opacity-75"></i>
+                        <i class="fas fa-user-check fa-2x"></i>
                     </div>
                 </div>
             </div>
@@ -45,11 +39,11 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
-                        <h6 class="card-title">Total Balance</h6>
+                        <h6>Total Balance</h6>
                         <h3>${{ number_format($totalBalance, 2) }}</h3>
                     </div>
                     <div class="align-self-center">
-                        <i class="fas fa-dollar-sign fa-2x opacity-75"></i>
+                        <i class="fas fa-dollar-sign fa-2x"></i>
                     </div>
                 </div>
             </div>
@@ -61,13 +55,14 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
-                        <h6 class="card-title">Your Balance</h6>
+                        <h6>Your Balance</h6>
                         <h3>${{ number_format(auth()->user()->balance ?? 0, 2) }}</h3>
                     </div>
                     <div class="align-self-center">
-                        <i class="fas fa-wallet fa-2x opacity-75"></i>
+                        <i class="fas fa-wallet fa-2x"></i>
                     </div>
                 </div>
+                <a href="{{ route('payment.form') }}" class="btn btn-light btn-sm mt-2">Add Funds</a>
             </div>
         </div>
     </div>
@@ -80,7 +75,7 @@
                 <h5>Monthly Spending</h5>
             </div>
             <div class="card-body">
-                <canvas id="spendingChart" height="100"></canvas>
+                <canvas id="monthlyChart" height="100"></canvas>
             </div>
         </div>
     </div>
@@ -88,20 +83,25 @@
     <div class="col-md-4">
         <div class="card">
             <div class="card-header">
-                <h5>Recent Transactions</h5>
+                <div class="d-flex justify-content-between">
+                    <h5>Recent Transactions</h5>
+                    <a href="{{ route('transactions.index') }}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
             </div>
             <div class="card-body">
                 @forelse($recentTransactions as $transaction)
                     <div class="d-flex justify-content-between border-bottom py-2">
                         <div>
-                            <small class="text-muted">{{ $transaction->subUser->username ?? 'N/A' }}</small><br>
-                            <span class="badge bg-{{ $transaction->type === 'charge' ? 'danger' : 'success' }}">
+                            <span class="badge bg-{{ $transaction->type === 'charge' ? 'danger' : ($transaction->type === 'deposit' ? 'success' : 'info') }}">
                                 {{ ucfirst($transaction->type) }}
                             </span>
+                            <small class="text-muted d-block">
+                                {{ $transaction->subUser->username ?? 'Account' }}
+                            </small>
                         </div>
                         <div class="text-end">
-                            <strong>${{ number_format($transaction->amount, 2) }}</strong><br>
-                            <small class="text-muted">{{ $transaction->created_at->format('M d, H:i') }}</small>
+                            <strong>${{ number_format($transaction->amount, 2) }}</strong>
+                            <small class="text-muted d-block">{{ $transaction->created_at->format('M d, H:i') }}</small>
                         </div>
                     </div>
                 @empty
@@ -114,8 +114,8 @@
 
 @push('scripts')
 <script>
-const ctx = document.getElementById('spendingChart').getContext('2d');
-const spendingChart = new Chart(ctx, {
+const ctx = document.getElementById('monthlyChart').getContext('2d');
+new Chart(ctx, {
     type: 'line',
     data: {
         labels: @json($monthlySpending->pluck('month')),
@@ -129,7 +129,6 @@ const spendingChart = new Chart(ctx, {
     },
     options: {
         responsive: true,
-        maintainAspectRatio: false,
         scales: {
             y: {
                 beginAtZero: true

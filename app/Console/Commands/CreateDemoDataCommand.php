@@ -11,8 +11,8 @@ use Illuminate\Support\Facades\Hash;
 
 class CreateDemoDataCommand extends Command
 {
-    protected $signature = 'demo:create {--user=demo@dataimpulse-reseller.com}';
-    protected $description = 'Create demo data for employer testing';
+    protected $signature = 'demo:create {--user=demo@test.com} {--clean}';
+    protected $description = 'Create demo data with real API integration';
 
     private ResellerApiClient $apiClient;
 
@@ -24,23 +24,25 @@ class CreateDemoDataCommand extends Command
 
     public function handle(): int
     {
-        $this->info('Creating demo data for DataImpulse Reseller...');
+        $this->info('Creating demo data with real DataImpulse API...');
 
-        // Get or create demo user
+        try {
+            $apiBalance = $this->apiClient->getUserBalance();
+            $this->info("API Balance: {$apiBalance['balance']} bytes");
+        } catch (\Exception $e) {
+            $this->warn("API Error: {$e->getMessage()}");
+            return Command::FAILURE;
+        }
+
         $user = $this->getOrCreateDemoUser();
         
-        // Clean existing data
-        $this->cleanExistingData($user);
+        if ($this->option('clean')) {
+            $this->cleanExistingData($user);
+        }
         
-        // Create sub users with API integration
         $subUsers = $this->createSubUsers($user);
-        
-        // Create realistic transactions
         $this->createTransactions($user, $subUsers);
-        
-        // Update user balance
         $this->updateUserBalance($user);
-        
         $this->displaySummary($user);
         
         return Command::SUCCESS;
@@ -50,38 +52,35 @@ class CreateDemoDataCommand extends Command
     {
         $email = $this->option('user');
         
-        $user = User::where('email', $email)->first();
-        
-        if (!$user) {
-            $user = User::create([
+        $user = User::firstOrCreate(
+            ['email' => $email],
+            [
                 'name' => 'Demo User',
-                'email' => $email,
-                'password' => Hash::make('demo123'),
-                'balance' => 500.00,
-            ]);
-            $this->info("Created demo user: {$user->email}");
-        }
+                'password' => Hash::make('password'),
+                'balance' => 100.00,
+            ]
+        );
         
+        $this->info("Using user: {$user->email}");
         return $user;
     }
 
     private function cleanExistingData(User $user): void
     {
+        $this->info('Cleaning existing data...');
         Transaction::where('user_id', $user->id)->delete();
         SubUser::where('user_id', $user->id)->delete();
-        $this->info('Cleaned existing demo data');
+        $user->update(['balance' => 100.00]);
     }
 
     private function createSubUsers(User $user): \Illuminate\Support\Collection
     {
-        $this->info('Creating sub users...');
+        $this->info('Creating sub users with API integration...');
         
         $demoUsers = [
-            ['username' => 'marketing_team', 'email' => 'marketing@company.com', 'balance' => 250.50, 'status' => 'active'],
-            ['username' => 'seo_tools', 'email' => 'seo@company.com', 'balance' => 180.75, 'status' => 'active'],
-            ['username' => 'data_scraping', 'email' => 'data@company.com', 'balance' => 95.25, 'status' => 'active'],
-            ['username' => 'social_media', 'email' => 'social@company.com', 'balance' => 45.00, 'status' => 'inactive'],
-            ['username' => 'research_team', 'email' => 'research@company.com', 'balance' => 15.80, 'status' => 'active']
+            ['username' => 'marketing_' . time(), 'email' => 'marketing@test.com', 'balance' => 250.50],
+            ['username' => 'seo_' . time(), 'email' => 'seo@test.com', 'balance' => 180.75],
+            ['username' => 'scraping_' . time(), 'email' => 'data@test.com', 'balance' => 95.25],
         ];
 
         $subUsers = collect();
@@ -91,23 +90,24 @@ class CreateDemoDataCommand extends Command
                 'user_id' => $user->id,
                 'username' => $userData['username'],
                 'email' => $userData['email'],
-                'password' => Hash::make('password123'),
+                'password' => Hash::make('password'),
                 'balance' => $userData['balance'],
-                'status' => $userData['status']
+                'status' => 'active'
             ]);
 
-            // Try API integration
             try {
                 $apiResponse = $this->apiClient->createSubUser([
                     'username' => $userData['username'],
-                    'threads' => rand(20, 100)
+                    'threads' => rand(30, 100)
                 ]);
                 
                 $subUser->update(['api_user_id' => $apiResponse['id']]);
-                $this->info("✓ {$userData['username']} - Synced with API (ID: {$apiResponse['id']})");
+                
+                $this->info("✓ {$userData['username']} - API ID: {$apiResponse['id']}");
+                $this->line("  Proxy: {$apiResponse['login']}:{$apiResponse['password']}");
                 
             } catch (\Exception $e) {
-                $this->warn("✓ {$userData['username']} - Local only (API: {$e->getMessage()})");
+                $this->warn("✗ {$userData['username']} - API failed: " . substr($e->getMessage(), 0, 50));
             }
             
             $subUsers->push($subUser);
@@ -120,36 +120,27 @@ class CreateDemoDataCommand extends Command
     {
         $this->info('Creating transactions...');
         
-        $bar = $this->output->createProgressBar(50);
-        
-        // Create varied transactions over last 90 days
-        for ($i = 0; $i < 50; $i++) {
-            $transaction = Transaction::factory()->create([
+        for ($i = 0; $i < 20; $i++) {
+            Transaction::factory()->create([
                 'user_id' => $user->id,
                 'sub_user_id' => $subUsers->random()->id,
-                'created_at' => now()->subDays(rand(1, 90))
+                'created_at' => now()->subDays(rand(1, 30))
             ]);
-            
-            $bar->advance();
         }
         
-        // Create user-level deposits
-        Transaction::factory(8)->create([
+        Transaction::factory(5)->create([
             'user_id' => $user->id,
             'sub_user_id' => null,
             'type' => 'deposit',
-            'created_at' => now()->subDays(rand(1, 60))
+            'created_at' => now()->subDays(rand(1, 15))
         ]);
-        
-        $bar->finish();
-        $this->newLine();
     }
 
     private function updateUserBalance(User $user): void
     {
         $totalDeposits = $user->transactions()->where('type', 'deposit')->sum('amount');
         $totalSpent = $user->transactions()->where('type', 'charge')->sum('amount');
-        $balance = max(0, $totalDeposits - $totalSpent);
+        $balance = max(100, $totalDeposits - $totalSpent + 100);
         
         $user->update(['balance' => $balance]);
     }
@@ -158,13 +149,20 @@ class CreateDemoDataCommand extends Command
     {
         $this->newLine();
         $this->info('Demo data created successfully!');
+        
         $this->table(['Metric', 'Value'], [
             ['Email', $user->email],
-            ['Password', 'demo123'],
+            ['Password', 'password'],
             ['Sub Users', $user->subUsers()->count()],
+            ['API Synced', $user->subUsers()->whereNotNull('api_user_id')->count()],
             ['User Balance', '$' . number_format($user->balance, 2)],
-            ['Total Transactions', $user->transactions()->count()],
+            ['Transactions', $user->transactions()->count()],
             ['URL', 'http://localhost:8000']
         ]);
+        
+        $this->newLine();
+        $this->info('Login at: http://localhost:8000');
+        $this->info('Email: ' . $user->email);
+        $this->info('Password: password');
     }
 }

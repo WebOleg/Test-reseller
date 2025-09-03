@@ -41,14 +41,4 @@ class User extends Authenticatable
     {
         return $this->hasMany(Transaction::class);
     }
-
-    public function activeSubUsers(): HasMany
-    {
-        return $this->subUsers()->where('status', 'active');
-    }
-
-    public function getBalanceAttribute()
-    {
-        return $this->attributes['balance'] ?? 0.00;
-    }
 }

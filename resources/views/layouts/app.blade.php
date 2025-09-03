@@ -18,11 +18,17 @@
                 <a class="nav-link" href="{{ route('dashboard') }}">Dashboard</a>
                 <a class="nav-link" href="{{ route('sub-users.index') }}">Sub Users</a>
                 <a class="nav-link" href="{{ route('statistics.index') }}">Statistics</a>
+                <a class="nav-link" href="{{ route('transactions.index') }}">Transactions</a>
+                <a class="nav-link text-warning" href="{{ route('payment.form') }}">
+                    <i class="fas fa-credit-card"></i> Add Funds
+                </a>
                 <div class="dropdown">
                     <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                        {{ auth()->user()->name }}
+                        {{ auth()->user()->name }} (${{ number_format(auth()->user()->balance ?? 0, 2) }})
                     </a>
                     <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{{ route('payment.form') }}">Add Funds</a></li>
+                        <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Logout</a></li>
                     </ul>
                 </div>
